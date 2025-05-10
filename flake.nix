@@ -19,7 +19,8 @@
 
             src = ./.;
 
-            nativeBuildInputs = [ pkgs.cargo pkgs.SDL2 ];
+            nativeBuildInputs = [ pkgs.cargo ];
+            buildInputs = [ pkgs.SDL2 ];
 
             cargoLock = {
                 lockFile = ./Cargo.lock;
