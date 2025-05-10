@@ -1,3 +1,4 @@
+
 use sdl2::EventPump;
 use tokio::task;
 use tokio::sync::mpsc;
@@ -8,32 +9,55 @@ use tokio::net::UdpSocket;
 
 mod payload;
 use payload::payload::Payload;
+use std::cell::BorrowError;
+use std::process::Command;
+
 
 fn sdl2_init() -> (GameController, Haptic, EventPump) {
-    let sdl_context = sdl2::init().unwrap();
+    let sdl_context = sdl2::init().expect("Failed to initialize SDL2");
 
-    let haptic_subsystem = sdl_context.haptic().unwrap();
+    let haptic_subsystem = sdl_context.haptic().expect("Failed to get SDL2 haptic subsystem");
 
-    let controller_subsystem = sdl_context.game_controller().unwrap();
+    let controller_subsystem = sdl_context.game_controller().expect("Failed to get SDL2 game controller subsystem");
     
     controller_subsystem.set_event_state(true);
 
-    let game_controller = match controller_subsystem.open(0) {
-        Ok(controller) => controller,
-        Err(_) => {
-            println!("Failed to open game controller");
-            panic!("no game controller")
-        }
-    };
+    let game_controller = controller_subsystem
+        .open(0)
+        .expect("Failed to open game controller: no controller found or not supported");
 
-    let haptic = haptic_subsystem.open_from_joystick_id(0).unwrap();
+    let haptic = haptic_subsystem
+        .open_from_joystick_id(0)
+        .expect("Failed to open haptic device from joystick");
 
-    let event_pump = sdl_context.event_pump().unwrap();
+    let event_pump = sdl_context.event_pump().expect("Failed to get SDL2 event pump");
 
     (game_controller, haptic, event_pump)
-    
 }
 
+
+pub fn is_connected_to_rc() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        let output = Command::new("nmcli")
+            .args(&["-t", "-f", "active,ssid", "dev", "wifi"])
+            .output()
+            .expect("Failed to execute nmcli");
+
+        let output = String::from_utf8_lossy(&output.stdout);
+        // print!("{}", output);
+        for line in output.lines() {
+            if line.contains("yes:") {
+                let ssid = &line[4..line.len()]; // Get SSID after "yes:"
+                if ssid == "RC Car" {
+                    return true; // Return SSID if it matches "RC Car"
+                }
+            }
+        }
+        false
+    }
+
+}
 
 
 
@@ -41,6 +65,16 @@ fn sdl2_init() -> (GameController, Haptic, EventPump) {
 
 #[tokio::main]
 async fn main() {
+
+
+    if !is_connected_to_rc() {
+        println!(
+            "You're not connected to the 'RC_CAR' Wi-Fi network.\n\
+            Please connect to the RC_CAR network and restart the program."
+        );
+        std::process::exit(1);
+    }
+
     
     let socket = UdpSocket::bind("0.0.0.0:0").await.unwrap(); 
 
@@ -97,6 +131,3 @@ async fn main() {
 
     
 }
-
-
-
