@@ -31,6 +31,7 @@ fn sdl2_init() -> (GameController, Haptic, EventPump) {
     let event_pump = sdl_context.event_pump().unwrap();
 
     (game_controller, haptic, event_pump)
+    
 }
 
 
